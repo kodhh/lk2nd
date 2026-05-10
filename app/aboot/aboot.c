@@ -1627,6 +1627,9 @@ int boot_linux_from_mmc(void)
 #endif
 	struct kernel64_hdr *kptr = NULL;
 	int current_active_slot = INVALID;
+	bool try_alternate_partition = false;
+	unsigned boot_sub_idx = 0;
+	char boot_sub_name[32];
 
 	if (!IS_ENABLED(ABOOT_STANDALONE) && check_format_bit())
 		boot_into_recovery = 1;
@@ -1660,7 +1663,7 @@ int boot_linux_from_mmc(void)
 	image_size = partition_get_size(index);
 	if(ptn == 0 || image_size == 0) {
 		dprintf(CRITICAL, "ERROR: No %s partition found\n", ptn_name);
-		return -1;
+		goto try_boot_sub;
 	}
 
 	/* Set Lun for boot & recovery partitions */
@@ -1668,13 +1671,48 @@ int boot_linux_from_mmc(void)
 
 	if (mmc_read(ptn + offset, (uint32_t *) buf, page_size)) {
 		dprintf(CRITICAL, "ERROR: Cannot read boot image header\n");
-                return -1;
+                goto try_boot_sub;
 	}
 
 	if (memcmp(hdr->magic, BOOT_MAGIC, BOOT_MAGIC_SIZE)) {
-		dprintf(CRITICAL, "ERROR: Invalid boot image header\n");
-                return ERR_INVALID_BOOT_MAGIC;
+		dprintf(CRITICAL, "ERROR: Invalid boot image header on partition %s\n", ptn_name);
+		if (IS_ENABLED(WITH_LK2ND_DEVICE_2ND) && !try_alternate_partition) {
+			try_alternate_partition = true;
+			if (strcmp(ptn_name, "boot") == 0) {
+				ptn_name = "real_boot";
+				dprintf(CRITICAL, "Retrying boot with %s partition\n", ptn_name);
+				goto retry_boot;
+			} else if (strcmp(ptn_name, "recovery") == 0) {
+				ptn_name = "real_recovery";
+				dprintf(CRITICAL, "Retrying boot with %s partition\n", ptn_name);
+				goto retry_boot;
+			}
+		}
+		goto try_boot_sub;
 	}
+	/* Valid boot image header found - continue booting below */
+	/* (fall through to the rest of the function) */
+	goto after_boot_sub;
+
+try_boot_sub:
+	if (strcmp(ptn_name, "recovery") != 0) {
+		unsigned pcount = partition_get_partition_count();
+		struct partition_entry *pentries = partition_get_partition_entries();
+		while (pentries && boot_sub_idx < pcount) {
+			const char *pname = (const char *)pentries[boot_sub_idx].name;
+			boot_sub_idx++;
+			if (strncmp(pname, "boot-", strlen("boot-")) != 0)
+				continue;
+
+			snprintf(boot_sub_name, sizeof(boot_sub_name), "%s", pname);
+			ptn_name = boot_sub_name;
+			dprintf(CRITICAL, "Trying boot partition: %s\n", ptn_name);
+			goto retry_boot;
+		}
+	}
+	return ERR_INVALID_BOOT_MAGIC;
+
+after_boot_sub:
 
 	if (hdr->page_size && (hdr->page_size != page_size)) {
 
