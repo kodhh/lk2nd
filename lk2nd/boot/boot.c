@@ -61,7 +61,9 @@ void lk2nd_collect_boot_options(struct boot_entry *entries, int *count)
 	bdev_t *bdev;
 	int i = 0;
 	int ret;
+	bdev_t *recovery_bdev = NULL;
 
+	/* ---- Pass 1: boot* partitions (Android) ---- */
 	list_for_every_entry(&bdevs->list, bdev, bdev_t, node) {
 		if (!bdev->is_leaf)
 			continue;
@@ -79,11 +81,26 @@ void lk2nd_collect_boot_options(struct boot_entry *entries, int *count)
 				sizeof(entries[i].partition));
 			i++;
 		}
+	}
+
+	/* ---- Pass 2: extlinux partitions ---- */
+	list_for_every_entry(&bdevs->list, bdev, bdev_t, node) {
+		if (!bdev->is_leaf)
+			continue;
+		if (bdev->size < LK2ND_BOOT_MIN_SIZE)
+			continue;
+		if (i >= MAX_BOOT_ENTRIES - 1)
+			break;
+
+		if (bdev->label && !strcmp(bdev->label, "recovery")) {
+			recovery_bdev = bdev;
+			continue;
+		}
 
 		snprintf(mountpoint, sizeof(mountpoint), "/%s", bdev->name);
 		ret = fs_mount(mountpoint, "ext2", bdev->name);
 		if (ret < 0)
-			goto check_recovery;
+			continue;
 
 		snprintf(extlinux_path, sizeof(extlinux_path),
 			 "%s/extlinux/extlinux.conf", mountpoint);
@@ -101,26 +118,25 @@ void lk2nd_collect_boot_options(struct boot_entry *entries, int *count)
 				sizeof(entries[i].mountpoint));
 			i++;
 		}
-
-check_recovery:
-		if (bdev->label && !strcmp(bdev->label, "recovery") &&
-		    bdev->size >= LK2ND_BOOT_MIN_SIZE) {
-			snprintf(entries[i].name, sizeof(entries[i].name),
-				 "Android: recovery");
-			entries[i].type = ENTRY_ANDROID;
-			strlcpy(entries[i].partition, "recovery",
-				sizeof(entries[i].partition));
-			i++;
-		}
 	}
 
+	/* ---- Recovery ---- */
+	if (recovery_bdev && recovery_bdev->size >= LK2ND_BOOT_MIN_SIZE) {
+		snprintf(entries[i].name, sizeof(entries[i].name),
+			 "Android: recovery");
+		entries[i].type = ENTRY_ANDROID;
+		strlcpy(entries[i].partition, "recovery",
+			sizeof(entries[i].partition));
+		i++;
+	}
+
+	/* ---- Always: fastboot ---- */
 	snprintf(entries[i].name, sizeof(entries[i].name), "Fastboot mode");
 	entries[i].type = ENTRY_FASTBOOT;
 	i++;
 
 	*count = i;
 }
-
 int lk2nd_show_boot_menu(struct boot_entry *entries, int count)
 {
 	struct fbcon_config *fb = fbcon_display();

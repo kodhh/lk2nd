@@ -149,9 +149,26 @@ status_t ext2_mount(bdev_t *dev, fscookie **cookie)
         return err;
     }
 
-    /* make sure it doesn't have any ro features we don't support */
-    if (ext2->sb.s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER|EXT2_FEATURE_RO_COMPAT_LARGE_FILE)) {
+    /* accept common ext4 ro features */
+    if (ext2->sb.s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SUPP |
+        EXT2_FEATURE_RO_COMPAT_HUGE_FILE  |
+        EXT2_FEATURE_RO_COMPAT_GDT_CSUM   |
+        EXT2_FEATURE_RO_COMPAT_DIR_NLINK  |
+        EXT2_FEATURE_RO_COMPAT_EXTRA_ISIZE)) {
         err = -3;
+        return err;
+    }
+
+    /* accept common ext4 incompat features */
+    if (ext2->sb.s_feature_incompat & ~(EXT2_FEATURE_INCOMPAT_SUPP       |
+        EXT3_FEATURE_INCOMPAT_RECOVER   |
+        EXT4_FEATURE_INCOMPAT_EXTENTS   |
+        EXT4_FEATURE_INCOMPAT_64BIT     |
+        EXT4_FEATURE_INCOMPAT_FLEX_BG   |
+        EXT4_FEATURE_INCOMPAT_MMP       |
+        EXT4_FEATURE_INCOMPAT_INLINE_DATA|
+        EXT4_FEATURE_INCOMPAT_ENCRYPT)) {
+        err = -5;
         return err;
     }
 
