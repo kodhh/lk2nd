@@ -120,6 +120,12 @@ static int aboot_frp_unlock(char *pname, void *data, unsigned sz);
 static inline uint64_t validate_partition_size(struct ptentry *ptn);
 bool pwr_key_is_pressed = false;
 unsigned boot_into_recovery = 0;
+
+#if WITH_LK2ND_BOOT_MENU
+extern bool lk2nd_boot_enter_fastboot;
+extern char lk2nd_boot_ptn_override[32];
+#endif
+
 static bool is_systemd_present=false;
 static void publish_getvar_multislot_vars(void);
 /* fastboot command function pointer */
@@ -1695,6 +1701,15 @@ int boot_linux_from_mmc(void)
 	goto after_boot_sub;
 
 try_boot_sub:
+#if WITH_LK2ND_BOOT_MENU
+	if (lk2nd_boot_ptn_override[0]) {
+		snprintf(boot_sub_name, sizeof(boot_sub_name), "%s", lk2nd_boot_ptn_override);
+		lk2nd_boot_ptn_override[0] = '\0';
+		ptn_name = boot_sub_name;
+		dprintf(CRITICAL, "Trying boot partition: %s (from menu)\n", ptn_name);
+		goto retry_boot;
+	}
+#endif
 	if (strcmp(ptn_name, "recovery") != 0) {
 		unsigned pcount = partition_get_partition_count();
 		struct partition_entry *pentries = partition_get_partition_entries();
@@ -5694,6 +5709,10 @@ normal_boot:
 #if WITH_LK2ND_BOOT
 		if (!boot_into_recovery)
 			lk2nd_boot();
+#if WITH_LK2ND_BOOT_MENU
+		if (lk2nd_boot_enter_fastboot)
+			goto fastboot;
+#endif
 #endif
 
 		if (target_is_emmc_boot())
