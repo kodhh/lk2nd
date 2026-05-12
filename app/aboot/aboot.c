@@ -1664,6 +1664,16 @@ int boot_linux_from_mmc(void)
 		}
 	}
 
+#if WITH_LK2ND_BOOT_MENU
+	if (lk2nd_boot_ptn_override[0]) {
+		snprintf(boot_sub_name, sizeof(boot_sub_name), "%s", lk2nd_boot_ptn_override);
+		lk2nd_boot_ptn_override[0] = '\0';
+		ptn_name = boot_sub_name;
+		dprintf(CRITICAL, "Booting from selected partition: %s\n", ptn_name);
+	}
+#endif
+
+retry_boot:
 	index = partition_get_index(ptn_name);
 	ptn = partition_get_offset(index);
 	image_size = partition_get_size(index);
@@ -1701,15 +1711,6 @@ int boot_linux_from_mmc(void)
 	goto after_boot_sub;
 
 try_boot_sub:
-#if WITH_LK2ND_BOOT_MENU
-	if (lk2nd_boot_ptn_override[0]) {
-		snprintf(boot_sub_name, sizeof(boot_sub_name), "%s", lk2nd_boot_ptn_override);
-		lk2nd_boot_ptn_override[0] = '\0';
-		ptn_name = boot_sub_name;
-		dprintf(CRITICAL, "Trying boot partition: %s (from menu)\n", ptn_name);
-		goto retry_boot;
-	}
-#endif
 	if (strcmp(ptn_name, "recovery") != 0) {
 		unsigned pcount = partition_get_partition_count();
 		struct partition_entry *pentries = partition_get_partition_entries();
