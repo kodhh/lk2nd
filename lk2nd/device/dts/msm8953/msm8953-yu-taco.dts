@@ -7,7 +7,7 @@
 
 / {
 	qcom,msm-id = <QCOM_ID_MSM8953 0>;
-	qcom,board-id = <QCOM_BOARD_ID(QRD, 2, 0) 0>;
+	qcom,board-id = <QCOM_BOARD_ID(QRD, 1, 0) 2>;
 };
 
 &lk2nd {
@@ -16,16 +16,4 @@
 
 	lk2nd,dtb-files = "msm8953-yu-taco";
 
-	panel {
-		compatible = "yu,taco-panel", "lk2nd,panel";
-
-		qcom,mdss_dsi_otm1901a_dj_1080p_video {
-			compatible = "mdss,otm1901a";
-			touchscreen-compatible = "goodix,gt9xx";
-		};
-		qcom,mdss_dsi_r63350_1080p_video {
-			compatible = "mdss,r63350";
-			touchscreen-compatible = "focaltech,5336";
-		};
-	};
 };

@@ -20,7 +20,6 @@ ADTBS += \
 	$(LOCAL_DIR)/msm8953-xiaomi-markw.dtb \
 	$(LOCAL_DIR)/msm8953-xiaomi-oxygen.dtb \
 	$(LOCAL_DIR)/msm8953-xiaomi-vince.dtb \
-	$(LOCAL_DIR)/msm8953-yu-taco.dtb \
 	$(LOCAL_DIR)/sda450-samsung-r05.dtb \
 	$(LOCAL_DIR)/sdm450-motorola-ali.dtb \
 	$(LOCAL_DIR)/sdm450-mtp.dtb \
@@ -34,3 +33,4 @@ ADTBS += \
 QCDTBS += \
 	$(LOCAL_DIR)/msm8953-motorola-potter.dtb \
 	$(LOCAL_DIR)/sdm450-samsung-r04.dtb \
+        $(LOCAL_DIR)/msm8953-yu-taco.dtb \
