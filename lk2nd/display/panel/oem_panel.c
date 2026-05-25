@@ -63,5 +63,6 @@ int oem_panel_select(const char *panel_name, struct panel_struct *panel,
 	else
 		memcpy(panel_regulator_settings, dcdc_regulator_settings, REGULATOR_SIZE);
 #endif
+
 	return PANEL_TYPE_DSI;
 }
