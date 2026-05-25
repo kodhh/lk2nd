@@ -133,9 +133,11 @@ static void opt_recovery(void)
 }
 static void opt_bootloader(void)
 {
+	extern void aboot_fastboot_register_commands(void);
 	extern int fastboot_init(void *xfer_buffer, unsigned max);
 
-	/* Re-init fastboot USB without rebooting */
+	/* Re-register flash/boot etc, then re-init fastboot USB */
+	aboot_fastboot_register_commands();
 	fastboot_init(target_get_scratch_address(), target_get_max_flash_size());
 }
 static void opt_edl(void)        { reboot_device(EMERGENCY_DLOAD); }
