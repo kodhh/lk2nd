@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <target.h>
+#include <display_menu.h>
 
 #include <lk2nd/boot.h>
 #include <lk2nd/device/keys.h>
@@ -142,14 +143,14 @@ int lk2nd_show_boot_menu(struct boot_entry *entries, int count)
 	struct fbcon_config *fb = fbcon_display();
 	int sel = 0;
 	time_t start, elapsed;
-	int remaining, i;
+	int remaining = BOOT_TIMEOUT_SEC, last_remaining = -1, i;
 	int y;
 	bool has_fb = (fb != NULL);
+	bool key_pressed = false, redraw = true;
 
 	if (has_fb) {
 		boot_scale_factor = calc_scale_factor();
 		boot_font_h = FONT_H * boot_scale_factor;
-		fbcon_clear();
 	} else {
 		dprintf(INFO, "boot: No framebuffer, fallback\n");
 	}
@@ -159,10 +160,12 @@ int lk2nd_show_boot_menu(struct boot_entry *entries, int count)
 	while (1) {
 		char buf[64];
 
-		elapsed = (current_time() - start) / 1000;
-		remaining = max(0, BOOT_TIMEOUT_SEC - (int)elapsed);
+		if (!key_pressed) {
+			elapsed = (current_time() - start) / 1000;
+			remaining = max(0, BOOT_TIMEOUT_SEC - (int)elapsed);
+		}
 
-		if (has_fb) {
+		if (has_fb && (redraw || remaining != last_remaining)) {
 			fbcon_clear();
 
 			y = boot_font_h * 2;
@@ -181,33 +184,52 @@ int lk2nd_show_boot_menu(struct boot_entry *entries, int count)
 			}
 
 			y += count * boot_font_h + boot_font_h;
-			snprintf(buf, sizeof(buf),
-				 "Auto boot in %ds... (Vol+/- nav, Power select)",
-				 remaining);
+			if (key_pressed)
+				snprintf(buf, sizeof(buf),
+					 "Vol+/- nav, Power select");
+			else
+				snprintf(buf, sizeof(buf),
+					 "Auto boot in %ds... (Vol+/- nav, Power select)",
+					 remaining);
 			menu_puts(FONT_W * boot_scale_factor, y,
 				  buf, FBCON_YELLOW_MSG);
 
 			fbcon_flush();
+			last_remaining = remaining;
+			redraw = false;
 		}
 
-		if (remaining <= 0)
+		if (!key_pressed && remaining <= 0)
 			return sel;
 
-		for (i = 0; i < 5; i++) {
-			thread_sleep(200);
-			elapsed = (current_time() - start) / 1000;
-			if ((int)elapsed >= BOOT_TIMEOUT_SEC)
+		for (i = 0; i < 20; i++) {
+			thread_sleep(50);
+
+			if (lk2nd_keys_pressed(KEY_VOLUMEUP)) {
+				sel = (sel == 0) ? count - 1 : sel - 1;
+				key_pressed = true;
+				redraw = true;
+				while (lk2nd_keys_pressed(KEY_VOLUMEUP))
+					thread_sleep(10);
+				break;
+			} else if (lk2nd_keys_pressed(KEY_VOLUMEDOWN)) {
+				sel = (sel == count - 1) ? 0 : sel + 1;
+				key_pressed = true;
+				redraw = true;
+				while (lk2nd_keys_pressed(KEY_VOLUMEDOWN))
+					thread_sleep(10);
+				break;
+			} else if (lk2nd_keys_pressed(KEY_POWER)) {
+				while (lk2nd_keys_pressed(KEY_POWER))
+					thread_sleep(10);
 				return sel;
-		}
+			}
 
-		if (lk2nd_keys_pressed(KEY_VOLUMEUP)) {
-			sel = (sel == 0) ? count - 1 : sel - 1;
-			start = current_time();
-		} else if (lk2nd_keys_pressed(KEY_VOLUMEDOWN)) {
-			sel = (sel == count - 1) ? 0 : sel + 1;
-			start = current_time();
-		} else if (lk2nd_keys_pressed(KEY_POWER)) {
-			return sel;
+			if (!key_pressed) {
+				elapsed = (current_time() - start) / 1000;
+				if ((int)elapsed >= BOOT_TIMEOUT_SEC)
+					return sel;
+			}
 		}
 	}
 }
@@ -252,8 +274,8 @@ void lk2nd_boot(void)
 		}
 		return;
 	case ENTRY_FASTBOOT:
-		dprintf(INFO, "boot: Entering fastboot mode\n");
-		lk2nd_boot_enter_fastboot = true;
+		dprintf(INFO, "boot: Entering native fastboot menu\n");
+		display_fastboot_menu();
 		return;
 	}
 }

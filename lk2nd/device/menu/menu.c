@@ -15,6 +15,7 @@
 #include <lk2nd/device/keys.h>
 #include <lk2nd/util/minmax.h>
 #include <lk2nd/version.h>
+#include <target.h>
 
 #include "../device.h"
 
@@ -130,7 +131,13 @@ static void opt_recovery(void)
 	boot_into_recovery = 1;
 	cmd_continue(NULL, NULL, 0);
 }
-static void opt_bootloader(void) { reboot_device(FASTBOOT_MODE); }
+static void opt_bootloader(void)
+{
+	extern int fastboot_init(void *xfer_buffer, unsigned max);
+
+	/* Re-init fastboot USB without rebooting */
+	fastboot_init(target_get_scratch_address(), target_get_max_flash_size());
+}
 static void opt_edl(void)        { reboot_device(EMERGENCY_DLOAD); }
 static void opt_shutdown(void)   { shutdown_device(); }
 
