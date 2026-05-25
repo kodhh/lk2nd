@@ -16,4 +16,19 @@
 
 	lk2nd,dtb-files = "msm8953-yu-taco";
 
+	panel {
+		compatible = "yu,taco-panel", "lk2nd,panel";
+
+		qcom,mdss_dsi_otm1901a_dj_1080p_video {
+			compatible = "yu,taco-otm1901a";
+		};
+
+		qcom,mdss_dsi_otm1901a_dj_1080p_video_otp {
+			compatible = "yu,taco-otm1901a-otp";
+		};
+
+		qcom,mdss_dsi_r63350_1080p_video {
+			compatible = "yu,taco-r63350";
+		};
+	};
 };
